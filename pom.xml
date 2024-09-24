@@ -90,5 +90,11 @@
             <version>2.8.9</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-sheets</artifactId>
+            <version>v4-rev612-1.25.0</version>
+        </dependency>
+
     </dependencies>
 </project>

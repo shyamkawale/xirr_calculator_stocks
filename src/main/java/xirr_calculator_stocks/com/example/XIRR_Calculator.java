@@ -9,6 +9,7 @@ import org.apache.commons.math3.analysis.solvers.BrentSolver;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -96,7 +97,7 @@ public class XIRR_Calculator {
         return result;
     }
 
-    public static void main(String[] args) throws IOException, ParseException {
+    public static void main(String[] args) throws IOException, ParseException, GeneralSecurityException {
         Set<String> visitedStock = new HashSet<String>();
         double xirrSum = 0;
 
@@ -128,6 +129,12 @@ public class XIRR_Calculator {
         for (Map.Entry<String, Double> entry : xirrList) {
             System.out.println("XIRR for " + entry.getKey() + ": " + entry.getValue() + "%");
         }
+
+        // Write to Google Sheets
+        String spreadsheetId = "1eDj3on2TeZn9PRChoXSW8AZwJBgz3ltVxB14bWEcdg0";  // Replace with actual spreadsheet ID
+        String range = "Sheet1!A1";  // Starting range where to write the data
+        GoogleDriveUtils.writeXirrResultsToGoogleSheet(xirrList, spreadsheetId, range);
+
         System.out.println("AVERAGE XIRR: "+ xirrSum/visitedStock.size());
     }
 }
