@@ -19,8 +19,8 @@ public class XIRR_Calculator {
 
     static {
         try {
-            // Google Drive file ID for file => https://docs.google.com/spreadsheets/d/1wLMfnDXpeLVoKOiEnXKln3JzVmhWUsgNDTFRQFeUo_Q/edit?usp=sharing
-            String fileId = "1wLMfnDXpeLVoKOiEnXKln3JzVmhWUsgNDTFRQFeUo_Q";
+            // Google Drive file ID for file => https://docs.google.com/spreadsheets/d/1yNT3QWv8PDgDIR6ic6VouTck1T-GpPIUMOHuxLzVPPU/edit?usp=sharing
+            String fileId = "1yNT3QWv8PDgDIR6ic6VouTck1T-GpPIUMOHuxLzVPPU";
             
             // Get file's input Stream from Google Drive and read it
             ByteArrayInputStream file = GoogleDriveUtils.getFileInputStreamFromDrive(fileId);
@@ -47,7 +47,7 @@ public class XIRR_Calculator {
                 Map<String, Object> cashFlow = new HashMap<>();
                 // Buy date and buy value
                 Date buyDate = sdf.parse(row.getCell(3).getStringCellValue());
-                double buyValue = row.getCell(5).getNumericCellValue();
+                double buyValue = Double.parseDouble(row.getCell(5).getStringCellValue());
 
                 cashFlow.put("date", buyDate);
                 cashFlow.put("cashFlow", -buyValue);  // Buying as negative cash flow
@@ -55,7 +55,7 @@ public class XIRR_Calculator {
 
                 // Closing date and closing value
                 closingDate = sdf.parse(row.getCell(6).getStringCellValue());
-                double closingValue = row.getCell(8).getNumericCellValue();
+                double closingValue = Double.parseDouble(row.getCell(8).getStringCellValue());
 
                 closingAmount += closingValue;
             }
@@ -105,6 +105,7 @@ public class XIRR_Calculator {
         for(Row row : sheet){
             String stockName = row.getCell(0).getStringCellValue();
 
+            if(stockName == "") break;
             if(stockName.contains("Stock")) continue;
             if(visitedStock.contains(stockName)) continue;
             visitedStock.add(stockName);
