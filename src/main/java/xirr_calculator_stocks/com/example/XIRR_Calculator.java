@@ -1,27 +1,32 @@
 package xirr_calculator_stocks.com.example;
 
+import xirr_calculator_stocks.com.example.utils.GoogleDriveUtils;
+
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.solvers.BrentSolver;
 
-import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class XIRR_Calculator {
-
     public static Workbook workbook;
     public static Sheet sheet;
 
     static {
         try {
-            FileInputStream file = new FileInputStream("src/main/resources/Stock_PnL_Report.xlsx");
+            // Google Drive file ID for file => https://docs.google.com/spreadsheets/d/1wLMfnDXpeLVoKOiEnXKln3JzVmhWUsgNDTFRQFeUo_Q/edit?usp=sharing
+            String fileId = "1wLMfnDXpeLVoKOiEnXKln3JzVmhWUsgNDTFRQFeUo_Q";
+            
+            // Get file's input Stream from Google Drive and read it
+            ByteArrayInputStream file = GoogleDriveUtils.getFileInputStreamFromDrive(fileId);
             workbook = new XSSFWorkbook(file);
             sheet = workbook.getSheetAt(0);
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.out.println(e.getMessage());
         }
     }
