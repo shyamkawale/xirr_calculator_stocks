@@ -4,6 +4,9 @@ import xirr_calculator_stocks.com.example.utils.GoogleDriveUtils;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import com.google.api.services.sheets.v4.Sheets;
+
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.solvers.BrentSolver;
 
@@ -16,7 +19,8 @@ import java.util.*;
 
 public class XIRR_Calculator {
     public static Workbook workbook;
-    public static Sheet sheet;
+    public static Sheet shyamSheet;
+    public static Sheet momSheet;
 
     static {
         try {
@@ -26,14 +30,15 @@ public class XIRR_Calculator {
             // Get file's input Stream from Google Drive and read it
             ByteArrayInputStream file = GoogleDriveUtils.getFileInputStreamFromDrive(fileId);
             workbook = new XSSFWorkbook(file);
-            sheet = workbook.getSheetAt(0);
+            shyamSheet = workbook.getSheetAt(0);
+            momSheet = workbook.getSheetAt(1);
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
     }
 
     // Method to read Excel file and get stock data
-    public static List<Map<String, Object>> readExcel(String stockName) throws IOException, ParseException {
+    public static List<Map<String, Object>> readExcel(Sheet sheet, String stockName) throws IOException, ParseException {
         List<Map<String, Object>> cashFlows = new ArrayList<>();
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
@@ -48,7 +53,7 @@ public class XIRR_Calculator {
                 Map<String, Object> cashFlow = new HashMap<>();
                 // Buy date and buy value
                 Date buyDate = sdf.parse(row.getCell(3).getStringCellValue());
-                double buyValue = Double.parseDouble(row.getCell(5).getStringCellValue());
+                double buyValue = Double.parseDouble(row.getCell(5).toString());
 
                 cashFlow.put("date", buyDate);
                 cashFlow.put("cashFlow", -buyValue);  // Buying as negative cash flow
@@ -56,7 +61,7 @@ public class XIRR_Calculator {
 
                 // Closing date and closing value
                 closingDate = sdf.parse(row.getCell(6).getStringCellValue());
-                double closingValue = Double.parseDouble(row.getCell(8).getStringCellValue());
+                double closingValue = Double.parseDouble(row.getCell(8).toString());
 
                 closingAmount += closingValue;
             }
@@ -97,10 +102,9 @@ public class XIRR_Calculator {
         return result;
     }
 
-    public static void main(String[] args) throws IOException, ParseException, GeneralSecurityException {
+    private static List<Map.Entry<String, Double>> readSheet(Sheet sheet) throws IOException, ParseException {
         Set<String> visitedStock = new HashSet<String>();
         double xirrSum = 0;
-
         List<Map.Entry<String, Double>> xirrList = new ArrayList<>();
 
         for(Row row : sheet){
@@ -112,7 +116,7 @@ public class XIRR_Calculator {
             visitedStock.add(stockName);
 
             // Read the stock data
-            List<Map<String, Object>> cashFlows = readExcel(stockName);
+            List<Map<String, Object>> cashFlows = readExcel(sheet, stockName);
 
             // Initial guess for XIRR calculation
             double xirr = calculateXIRR(cashFlows, 0.1) * 100;
@@ -120,7 +124,6 @@ public class XIRR_Calculator {
 
             xirrList.add(new HashMap.SimpleEntry<>(stockName, xirr));
         }
-        workbook.close();
 
         // Sort the list in decreasing order of XIRR
         xirrList.sort((entry1, entry2) -> Double.compare(entry2.getValue(), entry1.getValue()));
@@ -130,11 +133,29 @@ public class XIRR_Calculator {
             System.out.println("XIRR for " + entry.getKey() + ": " + entry.getValue() + "%");
         }
 
-        // Write to Google Sheets
-        String spreadsheetId = "1eDj3on2TeZn9PRChoXSW8AZwJBgz3ltVxB14bWEcdg0";  // Replace with actual spreadsheet ID
-        String range = "Sheet1!A1";  // Starting range where to write the data
-        GoogleDriveUtils.writeXirrResultsToGoogleSheet(xirrList, spreadsheetId, range);
-
         System.out.println("AVERAGE XIRR: "+ xirrSum/visitedStock.size());
+        return xirrList;
+    }
+
+
+    public static void main(String[] args) throws IOException, ParseException, GeneralSecurityException {
+        String spreadsheetId = "1eDj3on2TeZn9PRChoXSW8AZwJBgz3ltVxB14bWEcdg0";  // Replace with actual spreadsheet ID
+        Sheets sheetsService = GoogleDriveUtils.getSheetsService();
+
+        // update shyam's stock's XIRR
+        List<Map.Entry<String, Double>> shyamXirrList = readSheet(shyamSheet);
+        GoogleDriveUtils.writeXirrResultsToGoogleSheet(sheetsService, shyamXirrList, spreadsheetId, "A GRADE!A1:Z");
+        System.out.println("A is done");
+        GoogleDriveUtils.writeXirrResultsToGoogleSheet(sheetsService, shyamXirrList, spreadsheetId, "B GRADE!A1:Z");
+        System.out.println("B is done");
+        GoogleDriveUtils.writeXirrResultsToGoogleSheet(sheetsService, shyamXirrList, spreadsheetId, "C GRADE!A1:Z");
+        System.out.println("C is done");
+
+        // update shyam's stock's XIRR
+        List<Map.Entry<String, Double>> momXirrList = readSheet(momSheet);
+        GoogleDriveUtils.writeXirrResultsToGoogleSheet(sheetsService, momXirrList, spreadsheetId, "MOM MARKET!A1:Z");
+        System.out.println("MOM stock is done");
+
+        workbook.close();
     }
 }

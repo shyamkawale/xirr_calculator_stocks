@@ -13,12 +13,12 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import java.security.GeneralSecurityException;
 import com.google.api.services.sheets.v4.Sheets;
+import com.google.api.services.sheets.v4.model.BatchUpdateValuesRequest;
 import com.google.api.services.sheets.v4.model.ValueRange;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -27,8 +27,8 @@ public class GoogleDriveUtils {
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
     private static final List<String> SCOPES = Arrays.asList(
-        DriveScopes.DRIVE,  // Full Drive access
-        "https://www.googleapis.com/auth/spreadsheets"  // Full Sheets access
+            DriveScopes.DRIVE, // Full Drive access
+            "https://www.googleapis.com/auth/spreadsheets" // Full Sheets access
     );
     private static final String CREDENTIALS_FILE_PATH = "src/main/resources/client_secret.json";
 
@@ -37,7 +37,8 @@ public class GoogleDriveUtils {
         NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
         // Load client secrets from file
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new FileReader(CREDENTIALS_FILE_PATH));
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,
+                new FileReader(CREDENTIALS_FILE_PATH));
 
         // Set up OAuth 2.0 authorization code flow
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
@@ -58,10 +59,10 @@ public class GoogleDriveUtils {
         Drive service = getDriveService();
 
         // Download file from Google Drive
-
         OutputStream outputStream = new ByteArrayOutputStream();
+        
         service.files().export(fileId, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        .executeMediaAndDownloadTo(outputStream);
+                .executeMediaAndDownloadTo(outputStream);
 
         return new ByteArrayInputStream(((ByteArrayOutputStream) outputStream).toByteArray());
     }
@@ -71,7 +72,8 @@ public class GoogleDriveUtils {
         NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
         // Load client secrets from file
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new FileReader(CREDENTIALS_FILE_PATH));
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,
+                new FileReader(CREDENTIALS_FILE_PATH));
 
         // Set up OAuth 2.0 authorization code flow
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
@@ -88,27 +90,49 @@ public class GoogleDriveUtils {
                 .build();
     }
 
-
     // Method to write XIRR results to Google Sheet
-    public static void writeXirrResultsToGoogleSheet(List<Map.Entry<String, Double>> xirrList, String spreadsheetId, String range) throws IOException, GeneralSecurityException {
-        Sheets sheetsService = getSheetsService();
+    public static void writeXirrResultsToGoogleSheet(Sheets sheetsService, List<Map.Entry<String, Double>> xirrList, String spreadsheetId, String sheetRange) throws IOException, GeneralSecurityException {
+        List<ValueRange> dataToUpdate = new ArrayList<>();
 
-        // Prepare data to write to Google Sheets
-        List<List<Object>> rows = new ArrayList<>();
-        rows.add(Arrays.asList("Stock Name", "XIRR (%)"));  // Adding headers
-
-        for (Map.Entry<String, Double> entry : xirrList) {
-            List<Object> row = Arrays.asList(entry.getKey(), entry.getValue());
-            rows.add(row);
+        // Prepare data to update the XIRR values for each stock
+        ValueRange sheet1Data = sheetsService.spreadsheets().values().get(spreadsheetId, sheetRange).execute();
+        List<List<Object>> sheet1Rows = sheet1Data.getValues();
+        if (sheet1Rows == null || sheet1Rows.isEmpty()) {
+            System.out.println("No data found in the sheet.");
+            return;
         }
 
-        // Create a ValueRange object and set its values
-        ValueRange body = new ValueRange().setValues(rows);
+        int xirrColumnIndex = 15; // XIRR column P
 
-        // Write data to the sheet
-        sheetsService.spreadsheets().values().update(spreadsheetId, range, body)
-                .setValueInputOption("RAW")  // Use RAW input option to prevent formatting
+        for (int rowIndex = 2; rowIndex < sheet1Rows.size(); rowIndex++) {
+            List<Object> row = sheet1Rows.get(rowIndex);
+            String stockName = row.get(1).toString();  // Stock Name is in B column
+            for (Map.Entry<String, Double> entry : xirrList) {
+                if (entry.getKey().equals(stockName)) {
+                    while (row.size() <= xirrColumnIndex) {
+                        row.add(null);  // Add empty cells if necessary
+                    }
+                    sheet1Rows.get(rowIndex).set(xirrColumnIndex, entry.getValue()/100);
+                    break;
+                }
+            }
+        }
+        dataToUpdate.add(new ValueRange().setRange(sheetRange).setValues(sheet1Rows));
+
+        // Batch update the XIRR values
+        if (!dataToUpdate.isEmpty()) {
+            BatchUpdateValuesRequest batchUpdateRequest = new BatchUpdateValuesRequest()
+                .setValueInputOption("RAW")
+                .setData(dataToUpdate);
+
+            sheetsService.spreadsheets().values()
+                .batchUpdate(spreadsheetId, batchUpdateRequest)
                 .execute();
+
+            System.out.println("XIRR values successfully updated.");
+        } else {
+            System.out.println("No matching stock names found for XIRR update.");
+        }
 
         System.out.println("XIRR results written to Google Sheets successfully.");
     }
