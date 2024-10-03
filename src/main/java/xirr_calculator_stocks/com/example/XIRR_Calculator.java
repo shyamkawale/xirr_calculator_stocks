@@ -1,5 +1,6 @@
 package xirr_calculator_stocks.com.example;
 
+import xirr_calculator_stocks.com.example.models.StockDetail;
 import xirr_calculator_stocks.com.example.utils.GoogleDriveUtils;
 
 import org.apache.poi.ss.usermodel.*;
@@ -38,20 +39,23 @@ public class XIRR_Calculator {
     }
 
     // Method to read Excel file and get stock data
-    public static List<Map<String, Object>> readExcel(Sheet sheet, String stockName) throws IOException, ParseException {
+    public static List<Map<String, Object>> readExcel(Sheet sheet, StockDetail stock) throws IOException, ParseException {
         List<Map<String, Object>> cashFlows = new ArrayList<>();
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
 
         Date closingDate = new Date();
         double closingAmount = 0;
+        int quantity = 0;
+        double totalBuyValue = 0;
 
         // Iterating through rows and filtering by stock name
         for (Row row : sheet) {
             Cell stockCell = row.getCell(0);
-            if (stockCell != null && stockCell.getStringCellValue().equals(stockName)) {
+            if (stockCell != null && stockCell.getStringCellValue().equals(stock.stockName)) {
                 Map<String, Object> cashFlow = new HashMap<>();
-                // Buy date and buy value
+                // FetchData from sheet
+                quantity += Integer.parseInt(row.getCell(2).getStringCellValue());
                 Date buyDate = sdf.parse(row.getCell(3).getStringCellValue());
                 double buyValue = Double.parseDouble(row.getCell(5).toString());
 
@@ -64,6 +68,7 @@ public class XIRR_Calculator {
                 double closingValue = Double.parseDouble(row.getCell(8).toString());
 
                 closingAmount += closingValue;
+                totalBuyValue += buyValue;
             }
         }
 
@@ -71,6 +76,10 @@ public class XIRR_Calculator {
         closingCashFlow.put("date", closingDate);
         closingCashFlow.put("cashFlow", closingAmount);
         cashFlows.add(closingCashFlow);
+
+        stock.setQuantity(quantity);
+        stock.setAvgBuyAmount(totalBuyValue/quantity);
+        stock.setCmpAmount(closingAmount/quantity);
         return cashFlows;
     }
     
@@ -102,10 +111,10 @@ public class XIRR_Calculator {
         return result;
     }
 
-    private static List<Map.Entry<String, Double>> readSheet(Sheet sheet) throws IOException, ParseException {
+    private static List<StockDetail> readSheet(Sheet sheet) throws IOException, ParseException {
         Set<String> visitedStock = new HashSet<String>();
         double xirrSum = 0;
-        List<Map.Entry<String, Double>> xirrList = new ArrayList<>();
+        List<StockDetail> xirrList = new ArrayList<>();
 
         for(Row row : sheet){
             String stockName = row.getCell(0).getStringCellValue();
@@ -113,25 +122,24 @@ public class XIRR_Calculator {
             if(stockName == "") break;
             if(stockName.contains("Stock")) continue;
             if(visitedStock.contains(stockName)) continue;
+
+            StockDetail stock = new StockDetail(stockName, null, null, null, null);
             visitedStock.add(stockName);
 
             // Read the stock data
-            List<Map<String, Object>> cashFlows = readExcel(sheet, stockName);
+            List<Map<String, Object>> cashFlows = readExcel(sheet, stock);
 
-            // Initial guess for XIRR calculation
+            // XIRR calculation
             double xirr = calculateXIRR(cashFlows, 0.1) * 100;
             xirrSum += xirr;
-
-            xirrList.add(new HashMap.SimpleEntry<>(stockName, xirr));
+            
+            stock.setXirrValue(xirr);
+            System.out.println(stock.toString());
+            xirrList.add(stock);
         }
 
-        // Sort the list in decreasing order of XIRR
-        xirrList.sort((entry1, entry2) -> Double.compare(entry2.getValue(), entry1.getValue()));
-
-        // Print the sorted stocks with their XIRR values
-        for (Map.Entry<String, Double> entry : xirrList) {
-            System.out.println("XIRR for " + entry.getKey() + ": " + entry.getValue() + "%");
-        }
+        // // Sort the list in decreasing order of XIRR
+        // xirrList.sort((entry1, entry2) -> Double.compare(entry2.getValue(), entry1.getValue()));
 
         System.out.println("AVERAGE XIRR: "+ xirrSum/visitedStock.size());
         return xirrList;
@@ -139,11 +147,12 @@ public class XIRR_Calculator {
 
 
     public static void main(String[] args) throws IOException, ParseException, GeneralSecurityException {
-        String spreadsheetId = "1eDj3on2TeZn9PRChoXSW8AZwJBgz3ltVxB14bWEcdg0";  // Replace with actual spreadsheet ID
-        Sheets sheetsService = GoogleDriveUtils.getSheetsService();
+
+        List<StockDetail> shyamXirrList = readSheet(shyamSheet);
 
         // update shyam's stock's XIRR
-        List<Map.Entry<String, Double>> shyamXirrList = readSheet(shyamSheet);
+        String spreadsheetId = "1iu1hbr7JjPpO4xwpceFZojvDw6o-EGGDUAOJNNhxZbc";  // Replace with actual spreadsheet ID
+        Sheets sheetsService = GoogleDriveUtils.getSheetsService();
         GoogleDriveUtils.writeXirrResultsToGoogleSheet(sheetsService, shyamXirrList, spreadsheetId, "A GRADE!A1:Z");
         System.out.println("A is done");
         GoogleDriveUtils.writeXirrResultsToGoogleSheet(sheetsService, shyamXirrList, spreadsheetId, "B GRADE!A1:Z");
@@ -152,7 +161,7 @@ public class XIRR_Calculator {
         System.out.println("C is done");
 
         // update shyam's stock's XIRR
-        List<Map.Entry<String, Double>> momXirrList = readSheet(momSheet);
+        List<StockDetail> momXirrList = readSheet(momSheet);
         GoogleDriveUtils.writeXirrResultsToGoogleSheet(sheetsService, momXirrList, spreadsheetId, "MOM MARKET!A1:Z");
         System.out.println("MOM stock is done");
 
