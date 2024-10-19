@@ -1,5 +1,6 @@
 package xirr_calculator_stocks.com.example;
 
+import xirr_calculator_stocks.com.example.models.MutualFundDetail;
 import xirr_calculator_stocks.com.example.models.StockDetail;
 import xirr_calculator_stocks.com.example.utils.SheetService;
 
@@ -25,6 +26,8 @@ public class XIRR_Calculator {
         SheetService.updateStockSheet(momStocks, "MOM MARKET");
 
         //update mutual fund
+        List<MutualFundDetail> mutualFunds = SheetService.getMutualFundsFromSheet(pnlReportSheets.get("MutualFundPnLSheet"));
+        SheetService.updateMutualFundSheet(mutualFunds, "MUTUAL FUND");
         
     }
 }
