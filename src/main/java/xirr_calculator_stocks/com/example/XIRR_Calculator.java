@@ -20,6 +20,7 @@ public class XIRR_Calculator {
         SheetService.updateStockSheet(shyamStocks, "A GRADE");
         SheetService.updateStockSheet(shyamStocks, "B GRADE");
         SheetService.updateStockSheet(shyamStocks, "C GRADE");
+        SheetService.updateStockSheet(shyamStocks, "ETF");
 
         // update mom's stock's XIRR
         List<StockDetail> momStocks = SheetService.getStocksFromSheet(pnlReportSheets.get("MomPnLSheet"));
@@ -28,6 +29,5 @@ public class XIRR_Calculator {
         //update mutual fund
         List<MutualFundDetail> mutualFunds = SheetService.getMutualFundsFromSheet(pnlReportSheets.get("MutualFundPnLSheet"));
         SheetService.updateMutualFundSheet(mutualFunds, "MUTUAL FUND");
-        
     }
 }

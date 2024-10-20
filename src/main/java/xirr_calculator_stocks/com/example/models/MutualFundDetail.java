@@ -43,7 +43,7 @@ public class MutualFundDetail {
 
     @Override
     public String toString(){
-        return "Scheme Name: " + this.schemeName + " folioNumber: " + this.folioNumber + " units: " + this.totalUnits + " buyAmount: " + this.buyAmount + " cmpAmount: " + this.cmpAmount + " xirrValue: " + this.xirrValue;
+        return "Scheme Name: " + this.schemeName + " folioNumber: " + this.folioNumber + " units: " + this.totalUnits + " buyAmount: " + this.buyAmount + " cmpAmount: " + this.cmpAmount + " xirr: " + this.xirrValue + "%";
     }
 
 }
